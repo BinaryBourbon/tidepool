@@ -4,7 +4,13 @@ import { createWorkItem } from './actions'
 const inputClass =
   'w-full bg-gray-900 border border-gray-700 rounded px-3 py-2 text-sm text-gray-100 focus:outline-none focus:border-indigo-500 placeholder:text-gray-600'
 
-export default function NewWorkItemPage() {
+export default function NewWorkItemPage({
+  searchParams,
+}: {
+  searchParams: { title?: string }
+}) {
+  const prefillTitle = searchParams.title ?? ''
+
   return (
     <div className="max-w-xl">
       <div className="mb-6">
@@ -19,7 +25,14 @@ export default function NewWorkItemPage() {
           <label htmlFor="title" className="block text-sm font-medium text-gray-300 mb-1">
             Title <span className="text-red-400">*</span>
           </label>
-          <input type="text" id="title" name="title" required className={inputClass} />
+          <input
+            type="text"
+            id="title"
+            name="title"
+            required
+            defaultValue={prefillTitle}
+            className={inputClass}
+          />
         </div>
 
         <div>
