@@ -24,6 +24,7 @@ export async function PATCH(
   if (body.acceptanceMetric !== undefined) data.acceptanceMetric = body.acceptanceMetric
   if (body.githubRepo !== undefined) data.githubRepo = body.githubRepo
   if (body.featureFlagName !== undefined) data.featureFlagName = body.featureFlagName
+  if (body.githubBranch !== undefined) data.githubBranch = body.githubBranch
 
   const updated = await prisma.workItem.update({ where: { id: params.id }, data })
   return NextResponse.json(updated)

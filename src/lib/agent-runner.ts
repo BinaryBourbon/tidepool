@@ -139,15 +139,18 @@ async function pollUntilTerminal(
 
 async function detectPR(runId: string, workItemId: string): Promise<void> {
   const workItem = await prisma.workItem.findUnique({ where: { id: workItemId } })
-  if (!workItem?.githubBranch || !workItem?.githubRepo) {
-    console.warn('[agent-runner] Work item missing githubBranch or githubRepo — skipping PR detection')
+  if (!workItem?.githubRepo) {
+    console.warn('[agent-runner] Work item missing githubRepo — skipping PR detection')
     return
   }
 
   const [owner] = workItem.githubRepo.split('/')
   const branch = workItem.githubBranch
   const repo = workItem.githubRepo
-  const url = `https://api.github.com/repos/${repo}/pulls?head=${owner}:${branch}&state=open`
+  // If branch is known, filter by it; otherwise poll all open PRs and pick the most recent
+  const url = branch
+    ? `https://api.github.com/repos/${repo}/pulls?head=${owner}:${branch}&state=open`
+    : `https://api.github.com/repos/${repo}/pulls?state=open&sort=created&direction=desc`
 
   const maxAttempts = 12 // 10s * 12 = 2 minutes
   for (let i = 0; i < maxAttempts; i++) {
