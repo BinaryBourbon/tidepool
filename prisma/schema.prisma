@@ -39,6 +39,7 @@ model WorkItem {
   createdAt           DateTime      @default(now()) @map("created_at")
   updatedAt           DateTime      @updatedAt @map("updated_at")
   agentRuns           AgentRun[]
+  pullRequests        PullRequest[]
 
   @@map("work_items")
 }
@@ -57,4 +58,24 @@ model AgentRun {
 
   @@index([aodConversationId])
   @@map("agent_runs")
+}
+
+model PullRequest {
+  id              String    @id @default(uuid())
+  workItemId      String    @map("work_item_id")
+  githubPrNumber  Int       @map("github_pr_number")
+  githubRepo      String    @map("github_repo")
+  title           String
+  state           String    @default("open")
+  headBranch      String    @map("head_branch")
+  baseBranch      String    @map("base_branch")
+  authorHandle    String?   @map("author_handle")
+  additions       Int?
+  deletions       Int?
+  openedAt        DateTime  @map("opened_at")
+  mergedAt        DateTime? @map("merged_at")
+  lastSyncedAt    DateTime  @default(now()) @map("last_synced_at")
+  workItem        WorkItem  @relation(fields: [workItemId], references: [id])
+
+  @@map("pull_requests")
 }

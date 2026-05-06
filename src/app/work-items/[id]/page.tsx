@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
+import ExecuteView from './ExecuteView'
 
 export const dynamic = 'force-dynamic'
 
@@ -12,8 +13,29 @@ const STATE_BADGE: Record<string, string> = {
 }
 
 export default async function WorkItemPage({ params }: { params: { id: string } }) {
-  const item = await prisma.workItem.findUnique({ where: { id: params.id } })
+  const item = await prisma.workItem.findUnique({
+    where: { id: params.id },
+    include: {
+      agentRuns: {
+        orderBy: { startedAt: 'desc' },
+        take: 1,
+      },
+    },
+  })
   if (!item) notFound()
+
+  // Show the most recent run if it's active or has a PR
+  const latestRun = item.agentRuns[0] ?? null
+  const initialActiveRun =
+    latestRun &&
+    (['running', 'pending'].includes(latestRun.status) || latestRun.githubPrNumber !== null)
+      ? {
+          id: latestRun.id,
+          status: latestRun.status,
+          githubPrNumber: latestRun.githubPrNumber,
+          githubRepo: item.githubRepo,
+        }
+      : null
 
   return (
     <div className="max-w-2xl">
@@ -39,6 +61,15 @@ export default async function WorkItemPage({ params }: { params: { id: string } 
           </dt>
           <dd className="text-sm font-mono text-gray-300">{item.githubRepo}</dd>
         </div>
+
+        {item.githubBranch && (
+          <div>
+            <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+              Branch
+            </dt>
+            <dd className="text-sm font-mono text-gray-300">{item.githubBranch}</dd>
+          </div>
+        )}
 
         {item.description && (
           <div>
@@ -104,6 +135,12 @@ export default async function WorkItemPage({ params }: { params: { id: string } 
           <dd className="text-sm text-gray-500">{new Date(item.updatedAt).toLocaleString()}</dd>
         </div>
       </dl>
+
+      <ExecuteView
+        workItemId={item.id}
+        githubRepo={item.githubRepo}
+        initialActiveRun={initialActiveRun}
+      />
     </div>
   )
 }
