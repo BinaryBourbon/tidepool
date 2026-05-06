@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: tidepool-web
+    runtime: node
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    preDeployCommand: npx prisma migrate deploy
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: tidepool-db
+          property: connectionString
+      - key: AOD_BASE_URL
+        value: https://jake-bagzz.sprites.app
+      - key: AOD_TOKEN
+        sync: false
+      - key: AOD_AGENT_ID
+        sync: false
+      - key: GITHUB_TOKEN
+        sync: false
+      - key: POSTHOG_TOKEN
+        sync: false
+      - key: HONEYCOMB_KEY
+        sync: false
+
+databases:
+  - name: tidepool-db
+    databaseName: tidepool
+    user: tidepool
+    plan: free
