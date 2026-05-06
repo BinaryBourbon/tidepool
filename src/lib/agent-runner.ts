@@ -13,7 +13,8 @@ const AOD_BASE_URL = () => process.env.AOD_BASE_URL!
 const AOD_TOKEN = () => process.env.AOD_TOKEN!
 const GITHUB_TOKEN = () => process.env.GITHUB_TOKEN!
 
-const TERMINAL_STATUSES = new Set(['complete', 'failed', 'stopped'])
+// 'idle' = AoD conversation completed its turn (maps to our 'complete')
+const TERMINAL_STATUSES = new Set(['complete', 'failed', 'stopped', 'idle'])
 
 export function startBackgroundRunner(
   runId: string,
@@ -38,7 +39,8 @@ async function runBackground(
   const terminalStatus = await pollUntilTerminal(runId, aodConversationId)
 
   // 3. Update run status
-  const prismaStatus = terminalStatus === 'complete' ? 'complete'
+  // idle = AoD turn completed successfully; stopped = agent was halted
+  const prismaStatus = (terminalStatus === 'complete' || terminalStatus === 'idle') ? 'complete'
     : terminalStatus === 'failed' ? 'failed'
     : 'failed' // stopped → failed for Tidepool purposes
 
@@ -135,6 +137,11 @@ async function pollUntilTerminal(
   }
   // Timed out — mark failed
   return 'failed'
+}
+
+/** Exported for use in SSE route self-heal */
+export async function detectPRForRun(runId: string, workItemId: string): Promise<void> {
+  return detectPR(runId, workItemId)
 }
 
 async function detectPR(runId: string, workItemId: string): Promise<void> {

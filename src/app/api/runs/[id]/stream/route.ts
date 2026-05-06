@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { detectPRForRun } from '@/lib/agent-runner'
 
 export const dynamic = 'force-dynamic'
 
@@ -141,6 +142,38 @@ export async function GET(
               }
             }
           }
+        }
+        // AoD stream ended — check if AoD conversation is terminal and self-heal
+        // (handles the case where the background runner was recycled on Render free tier)
+        try {
+          const currentRun = await prisma.agentRun.findUnique({
+            where: { id: params.id },
+            include: { workItem: true },
+          })
+          if (currentRun?.status === 'running' && currentRun.aodConversationId) {
+            const convRes = await fetch(
+              `${aodBaseUrl}/api/conversations/${currentRun.aodConversationId}`,
+              { headers: { 'Authorization': `Bearer ${aodToken}` } }
+            )
+            if (convRes.ok) {
+              const convData = await convRes.json()
+              const aodStatus: string = convData.data?.status ?? convData.status ?? ''
+              const terminalSet = new Set(['complete', 'failed', 'stopped', 'idle'])
+              if (terminalSet.has(aodStatus)) {
+                const prismaStatus = (aodStatus === 'complete' || aodStatus === 'idle') ? 'complete' : 'failed'
+                await prisma.agentRun.update({
+                  where: { id: params.id },
+                  data: { status: prismaStatus, completedAt: new Date() },
+                })
+                // Kick off PR detection in background
+                if (prismaStatus === 'complete') {
+                  detectPRForRun(params.id, currentRun.workItemId).catch(() => {})
+                }
+              }
+            }
+          }
+        } catch {
+          // best effort self-heal
         }
       } catch (err: unknown) {
         // Client disconnected or AoD stream ended — not an error
