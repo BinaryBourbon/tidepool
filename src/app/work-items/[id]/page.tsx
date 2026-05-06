@@ -2,6 +2,8 @@ import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { prisma } from '@/lib/prisma'
 import ExecuteView from './ExecuteView'
+import EnableFlagPanel from './EnableFlagPanel'
+import FollowUpView from './FollowUpView'
 
 export const dynamic = 'force-dynamic'
 
@@ -20,11 +22,13 @@ export default async function WorkItemPage({ params }: { params: { id: string } 
         orderBy: { startedAt: 'desc' },
         take: 1,
       },
+      pullRequests: {
+        orderBy: { openedAt: 'desc' },
+      },
     },
   })
   if (!item) notFound()
 
-  // Show the most recent run if it's active or has a PR
   const latestRun = item.agentRuns[0] ?? null
   const initialActiveRun =
     latestRun &&
@@ -37,6 +41,10 @@ export default async function WorkItemPage({ params }: { params: { id: string } 
         }
       : null
 
+  const hasMergedPr = item.pullRequests.some((pr) => pr.state === 'merged')
+  const isExecutePhase = item.state === 'plan' || item.state === 'executing'
+  const isFollowUpPhase = item.state === 'shipped' || item.state === 'done'
+
   return (
     <div className="max-w-2xl">
       <div className="mb-6">
@@ -48,7 +56,9 @@ export default async function WorkItemPage({ params }: { params: { id: string } 
       <div className="flex items-start justify-between gap-4 mb-8">
         <h1 className="text-2xl font-semibold leading-tight">{item.title}</h1>
         <span
-          className={`shrink-0 inline-block px-3 py-1 rounded text-sm font-medium ${STATE_BADGE[item.state] ?? 'bg-gray-700 text-gray-300'}`}
+          className={`shrink-0 inline-block px-3 py-1 rounded text-sm font-medium ${
+            STATE_BADGE[item.state] ?? 'bg-gray-700 text-gray-300'
+          }`}
         >
           {item.state}
         </span>
@@ -116,6 +126,20 @@ export default async function WorkItemPage({ params }: { params: { id: string } 
           </div>
         )}
 
+        {item.shippedAt && (
+          <div>
+            <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
+              Shipped
+            </dt>
+            <dd className="text-sm text-gray-300">
+              {new Date(item.shippedAt).toLocaleString()}
+              {item.posthogRolloutPct !== null && (
+                <span className="ml-2 text-gray-500">({item.posthogRolloutPct}% rollout)</span>
+              )}
+            </dd>
+          </div>
+        )}
+
         <div>
           <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">Slug</dt>
           <dd className="text-sm font-mono text-gray-500">{item.slug}</dd>
@@ -127,20 +151,34 @@ export default async function WorkItemPage({ params }: { params: { id: string } 
           </dt>
           <dd className="text-sm text-gray-500">{new Date(item.createdAt).toLocaleString()}</dd>
         </div>
-
-        <div>
-          <dt className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-1">
-            Updated
-          </dt>
-          <dd className="text-sm text-gray-500">{new Date(item.updatedAt).toLocaleString()}</dd>
-        </div>
       </dl>
 
-      <ExecuteView
-        workItemId={item.id}
-        githubRepo={item.githubRepo}
-        initialActiveRun={initialActiveRun}
-      />
+      {/* Execute phase: prompt input + live stream */}
+      {isExecutePhase && (
+        <ExecuteView
+          workItemId={item.id}
+          githubRepo={item.githubRepo}
+          initialActiveRun={initialActiveRun}
+        />
+      )}
+
+      {/* Enable flag panel: shown in executing state once a PR is merged */}
+      {item.state === 'executing' && (
+        <EnableFlagPanel
+          workItemId={item.id}
+          featureFlagName={item.featureFlagName}
+          hasMergedPr={hasMergedPr}
+        />
+      )}
+
+      {/* Follow-up phase: Screen 5 (success) or Screen 6 (anomaly) */}
+      {isFollowUpPhase && (
+        <FollowUpView
+          workItemId={item.id}
+          workItemTitle={item.title}
+          isDone={item.state === 'done'}
+        />
+      )}
     </div>
   )
 }

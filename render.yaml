@@ -22,8 +22,12 @@ services:
         sync: false
       - key: POSTHOG_TOKEN
         sync: false
+      - key: POSTHOG_PROJECT_ID
+        value: ""
       - key: HONEYCOMB_KEY
         sync: false
+      - key: HONEYCOMB_DATASET
+        value: ""
 
 databases:
   - name: tidepool-db

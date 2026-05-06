@@ -23,23 +23,24 @@ enum AgentRunStatus {
 }
 
 model WorkItem {
-  id                  String        @id @default(uuid())
+  id                  String          @id @default(uuid())
   title               String
   description         String?
-  slug                String        @unique
-  ownerHandles        String[]      @map("owner_handles")
-  featureFlagName     String?       @map("feature_flag_name")
-  acceptanceMetric    String?       @map("acceptance_metric")
-  state               WorkItemState @default(plan)
-  baselineMetricValue Float?        @map("baseline_metric_value")
-  posthogRolloutPct   Int?          @map("posthog_rollout_pct")
-  shippedAt           DateTime?     @map("shipped_at")
-  githubRepo          String        @map("github_repo")
-  githubBranch        String?       @map("github_branch")
-  createdAt           DateTime      @default(now()) @map("created_at")
-  updatedAt           DateTime      @updatedAt @map("updated_at")
+  slug                String          @unique
+  ownerHandles        String[]        @map("owner_handles")
+  featureFlagName     String?         @map("feature_flag_name")
+  acceptanceMetric    String?         @map("acceptance_metric")
+  state               WorkItemState   @default(plan)
+  baselineMetricValue Float?          @map("baseline_metric_value")
+  posthogRolloutPct   Int?            @map("posthog_rollout_pct")
+  shippedAt           DateTime?       @map("shipped_at")
+  githubRepo          String          @map("github_repo")
+  githubBranch        String?         @map("github_branch")
+  createdAt           DateTime        @default(now()) @map("created_at")
+  updatedAt           DateTime        @updatedAt @map("updated_at")
   agentRuns           AgentRun[]
   pullRequests        PullRequest[]
+  followUpChecks      FollowUpCheck[]
 
   @@map("work_items")
 }
@@ -78,4 +79,21 @@ model PullRequest {
   workItem        WorkItem  @relation(fields: [workItemId], references: [id])
 
   @@map("pull_requests")
+}
+
+model FollowUpCheck {
+  id                   String    @id @default(uuid())
+  workItemId           String    @map("work_item_id")
+  checkedAt            DateTime  @default(now()) @map("checked_at")
+  posthogAfterValue    Float?    @map("posthog_after_value")
+  posthogDelta         Float?    @map("posthog_delta")
+  metricPassed         Boolean?  @map("metric_passed")
+  honeycombErrorRateOk Boolean?  @map("honeycomb_error_rate_ok")
+  honeycombLatencyOk   Boolean?  @map("honeycomb_latency_ok")
+  anomalyDetected      Boolean   @default(false) @map("anomaly_detected")
+  rawPosthogResponse   Json?     @map("raw_posthog_response")
+  rawHoneycombResponse Json?     @map("raw_honeycomb_response")
+  workItem             WorkItem  @relation(fields: [workItemId], references: [id])
+
+  @@map("follow_up_checks")
 }
