@@ -1,0 +1,60 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkItemState {
+  plan
+  executing
+  shipped
+  done
+}
+
+enum AgentRunStatus {
+  pending
+  running
+  complete
+  failed
+  cancelled
+}
+
+model WorkItem {
+  id                  String        @id @default(uuid())
+  title               String
+  description         String?
+  slug                String        @unique
+  ownerHandles        String[]      @map("owner_handles")
+  featureFlagName     String?       @map("feature_flag_name")
+  acceptanceMetric    String?       @map("acceptance_metric")
+  state               WorkItemState @default(plan)
+  baselineMetricValue Float?        @map("baseline_metric_value")
+  posthogRolloutPct   Int?          @map("posthog_rollout_pct")
+  shippedAt           DateTime?     @map("shipped_at")
+  githubRepo          String        @map("github_repo")
+  githubBranch        String?       @map("github_branch")
+  createdAt           DateTime      @default(now()) @map("created_at")
+  updatedAt           DateTime      @updatedAt @map("updated_at")
+  agentRuns           AgentRun[]
+
+  @@map("work_items")
+}
+
+model AgentRun {
+  id                String         @id @default(uuid())
+  workItemId        String         @map("work_item_id")
+  prompt            String
+  status            AgentRunStatus @default(pending)
+  streamLog         Json           @default("[]") @map("stream_log")
+  aodConversationId String?        @map("aod_conversation_id")
+  githubPrNumber    Int?           @map("github_pr_number")
+  startedAt         DateTime       @default(now()) @map("started_at")
+  completedAt       DateTime?      @map("completed_at")
+  workItem          WorkItem       @relation(fields: [workItemId], references: [id])
+
+  @@index([aodConversationId])
+  @@map("agent_runs")
+}
