@@ -16,6 +16,8 @@ services:
         sync: false
       - key: AOD_AGENT_ID
         sync: false
+      - key: AOD_VAULT_ID
+        sync: false
       - key: GITHUB_TOKEN
         sync: false
       - key: POSTHOG_TOKEN
